@@ -1,0 +1,204 @@
+#!/bin/bash
+
+# Section A
+
+# Help Option
+help_option() {
+    echo "Usage: internsctl [OPTIONS] COMMAND [ARGS]"
+    echo ""
+    echo "Options:"
+    echo "  --help     Show this message and exit"
+    echo "  --version  Show the version of the command"
+    echo ""
+    echo "Commands:"
+    echo "  cpu getinfo                      Retrieve CPU information"
+    echo "  memory getinfo                   Retrieve memory information"
+    echo "  user create <username>           Create a new user"
+    echo "  user delete <username>           Delete a user"
+    echo "  user list [--sudo-only]          List all regular users or users with sudo permissions"
+    echo "  file getinfo [OPTIONS] <file>    Retrieve information about a file"
+    echo ""
+    echo "Examples:"
+    echo "  internsctl cpu getinfo"
+    echo "  internsctl memory getinfo"
+    echo "  internsctl user create john"
+    echo "  internsctl user list --sudo-only"
+    echo "  internsctl file getinfo --size hello.txt"
+    echo "  internsctl file getinfo --permissions hello.txt"
+    echo "  internsctl file getinfo --owner hello.txt"
+    echo "  internsctl file getinfo --last-modified hello.txt"
+}
+
+# Version Option
+version_option() {
+    # Display the version of the command
+    echo "internsctl version v0.1.0"
+}
+
+# Section B
+# CPU Information
+cpu_info() {
+    # Retrieve CPU information
+    cpu_info=$(lscpu)
+
+    # Print CPU information
+    echo "$cpu_info"
+}
+
+# Memory Information
+memory_info() {
+    # Retrieve memory information
+    mem_info=$(free -h)
+
+    # Print memory information
+    echo "$mem_info"
+}
+
+# Create User
+create_user() {
+    if [ -z "$1" ]; then
+        echo "Error: Username not provided"
+        exit 1
+    fi
+    username="$1"
+    # Create a new user
+    sudo useradd -m "$username"
+    echo "User $username created successfully"
+}
+
+# List Users
+list_users() {
+    # List all regular users
+    regular_users=$(cut -d: -f1 /etc/passwd)
+    echo "Regular Users:"
+    echo "$regular_users"
+}
+
+# List Users with Sudo Permissions
+list_sudo_users() {
+    # List users with sudo permissions
+    sudo_users=$(grep -Po '^sudo:\K.*$' /etc/group | tr ',' '\n')
+    echo "Users with Sudo Permissions:"
+    echo "$sudo_users"
+}
+
+# Delete User
+delete_user() {
+    if [ -z "$1" ]; then
+        echo "Error: Username not provided"
+        exit 1
+    fi
+    username="$1"
+    # Delete the user
+    sudo userdel -r "$username"
+    echo "User $username deleted successfully"
+}
+
+file_info() {
+    if [ -z "$1" ]; then
+        echo "Error: File name not provided"
+        exit 1
+    fi
+
+    options="$1"
+    filename="$2"
+    # Process options
+    case "$options" in
+        --size | -s)
+            # Print size of the file
+            file_info=$(stat "$filename")
+
+            file_size=$(echo "$file_info" | grep "Size:" | awk '{print $2}')
+            echo "Size: $file_size bytes"
+            ;;
+        --permissions | -p)
+            # Print permissions of the file
+            file_info=$(stat "$filename")
+
+            file_permissions=$(echo "$file_info" | grep "Access:" | awk '{print $2}')
+            echo "Permissions: $file_permissions"
+            ;;
+        --owner | -o)
+            # Print owner of the file
+            file_info=$(stat "$filename")
+
+            file_owner=$(echo "$file_info" | grep "Uid:" | awk '{print $6}')
+            echo "Owner: $file_owner"
+            ;;
+        --last-modified | -m)
+            # Print last modified time of the file
+            file_info=$(stat "$filename")
+
+            last_modified=$(echo "$file_info" | grep "Modify:" | awk '{$1=""; print $0}')
+            echo "Last Modified: $last_modified"
+            ;;
+        *)
+            file_info=$(stat "$1")
+
+            file_size=$(echo "$file_info" | grep "Size:" | awk '{print $2}')
+            echo "Size: $file_size bytes"
+            file_permissions=$(echo "$file_info" | grep "Access:" | awk '{print $2}')
+            echo "Permissions: $file_permissions"
+            file_owner=$(echo "$file_info" | grep "Uid:" | awk '{print $6}')
+            echo "Owner: $file_owner"
+            last_modified=$(echo "$file_info" | grep "Modify:" | awk '{$1=""; print $0}')
+            echo "Last Modified: $last_modified"
+            ;;
+    esac
+}
+
+# Main function
+main() {
+    case "$1" in
+        cpu)
+            cpu_info
+            ;;
+        memory)
+            memory_info
+            ;;
+        user)
+            case "$2" in
+                create)
+                    create_user "$3"
+                    ;;
+                list)
+                    if [ "$3" == "--sudo-only" ]; then
+                        list_sudo_users
+                    else
+                        list_users
+                    fi
+                    ;;
+                *)
+                    echo "Invalid command: internsctl user $2"
+                    ;;
+            esac
+            ;;
+        file)
+            case "$2" in
+            getinfo)
+                file_info "$3" "$4"
+                ;;
+            *)
+                echo "invalid file arguments"
+                ;;
+            esac
+            ;;
+        --help)
+            help_option
+            ;;
+        --version)
+            version_option
+            ;;
+        delete)
+            delete_user "$2"
+            ;;
+        *)
+            echo "Invalid command: internsctl $1"
+            ;;
+        
+    esac
+}
+
+# Execute main function with arguments
+main "$@"
+
